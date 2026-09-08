@@ -11,8 +11,23 @@ function table(a){if(!a.length)return"<div class='empty'>No orders yet.</div>";r
 function orderPage(){return`<div class="admin-top"><h2>Orders</h2></div><div class="panel ${orders.length>1?'compact-orders':''}">${table(orders)}</div>`}
 function prodPage(){return`<div class="admin-top"><h2>Products</h2><button class="btn dark" onclick="openProductForm()">+ Add Product</button></div><div class="panel"><table class="admin-table"><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th></th></tr>${products.map(p=>`<tr><td class="mini-thumb">${p.image_url?`<img src="${esc(p.image_url)}">`:"—"}</td><td>${esc(p.name)}</td><td>${p.category}</td><td>${money(p.price)}</td><td>${p.stock}</td><td><button onclick="openProductForm('${p.id}')">Edit</button> <button onclick="del('${p.id}')">Delete</button></td></tr>`).join("")}</table></div><div id="modal"></div>`}
 function openProductForm(id){let p=products.find(x=>x.id===id)||{name:"",category:"Beads",price:0,stock:0,description:"",image_url:"",active:true};document.getElementById("modal").innerHTML=`<div class="modal open"><div class="modal-box"><button class="close" onclick="$('#modal').innerHTML=''">×</button><h3>${id?"Edit":"Add"} Product</h3><input id="pn" placeholder="Name" value="${esc(p.name)}"><select id="pc">${["Beads","Resin","Crochet"].map(x=>`<option ${x===p.category?"selected":""}>${x}</option>`).join("")}</select><input id="pp" type="number" placeholder="Price" value="${p.price}"><input id="ps" type="number" placeholder="Stock" value="${p.stock}"><textarea id="pd" placeholder="Description">${esc(p.description)}</textarea><label class="upload-label">Product image from gallery<input id="pimg" type="file" accept="image/*"></label>${p.image_url?`<div class="image-preview"><img src="${esc(p.image_url)}"><small>Current image will stay unless a new image is selected.</small></div>`:""}<label><input id="pa" type="checkbox" ${p.active?"checked":""}> Active</label><br><button class="btn dark" onclick="save('${id||""}')">Save</button></div></div>`}
-async function save(id){if(saving)return;saving=true;let p={name:$("#pn").value.trim(),category:$("#pc").value,price:Number($("#pp").value),stock:Number($("#ps").value),description:$("#pd").value,image_url:products.find(x=>x.id===id)?.image_url||"",active:$("#pa").checked};let file=$("#pimg")?.files?.[0];if(!p.name||p.price<0||p.stock<0){saving=false;return alert("Please enter valid product details.")}if(file){if(!file.type.startsWith("image/")){saving=false;return alert("Please select an image file.")}if(file.size>5*1024*1024){saving=false;return alert("Image must be 5MB or smaller.")}let ext=(file.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"").toLowerCase()||"jpg";let path=`products/${crypto.randomUUID()}.${ext}`;let up=await SW.client.storage.from("product-images").upload(path,file,{contentType:file.type,upsert:false});if(up.error){saving=false;return alert("Image upload failed: "+up.error.message)}let pub=SW.client.storage.from("product-images").getPublicUrl(path);p.image_url=pub.data.publicUrl}let r=id?await SW.client.from("products").update(p).eq("id",id):await SW.client.from("products").insert(p);if(r.error){saving=false;return alert(r.error.message)}await loadData();saving=false;render()}
-async function del(id){if(!confirm("Delete this product?"))return;let r=await SW.client.from("products").update({active:false}).eq("id",id);if(r.error)alert(r.error.message);await loadData();render()}
+async function del(id){
+  if(!confirm("Delete this product permanently?")) return;
+
+  let r = await SW.client
+    .from("products")
+    .delete()
+    .eq("id", id);
+
+  if(r.error){
+    alert("Delete failed: " + r.error.message);
+    return;
+  }
+
+  await loadData();
+  render();
+}
+async function del(id){if(!confirm("Delete this product?"))return;let r=await SW.client.from("products").update({active:false}).eq("id",id);if(r.error)alert(r.error.message);await loadData();render()
 async function status(id,s){let r=await SW.client.rpc("admin_update_order_status",{p_order_id:id,p_status:s});if(r.error){alert(r.error.message);return}await loadData();render()}
 async function delOrder(id){if(!confirm("Delete this order permanently?"))return;let r=await SW.client.from("orders").delete().eq("id",id);if(r.error)return alert(r.error.message);await loadData();render()}
 async function view(id){let o=orders.find(x=>x.id===id),r=await SW.client.from("order_items").select("*").eq("order_id",id);alert(`Order ${o.order_number}\n\n${o.customer_name}\n${o.phone}\n${o.city}\n${o.address}\n\nPayment: ${o.payment_method}\nTotal: ${money(o.total)}\n\n${(r.data||[]).map(i=>i.product_name+" × "+i.quantity).join("\n")}`)}
