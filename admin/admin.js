@@ -49,7 +49,22 @@ async function del(id){
   await loadData();
   render();
 }
-async function del(id){if(!confirm("Delete this product?"))return;let r=await SW.client.from("products").update({active:false}).eq("id",id);if(r.error)alert(r.error.message);await loadData();render()
+async function del(id){
+  if(!confirm("Delete this product?")) return;
+
+  const r = await SW.client
+    .from("products")
+    .update({ active: false })
+    .eq("id", id);
+
+  if(r.error){
+    alert("Delete failed: " + r.error.message);
+    return;
+  }
+
+  products = products.filter(p => p.id !== id);
+  render();
+}
 async function status(id,s){let r=await SW.client.rpc("admin_update_order_status",{p_order_id:id,p_status:s});if(r.error){alert(r.error.message);return}await loadData();render()}
 async function delOrder(id){if(!confirm("Delete this order permanently?"))return;let r=await SW.client.from("orders").delete().eq("id",id);if(r.error)return alert(r.error.message);await loadData();render()}
 async function view(id){let o=orders.find(x=>x.id===id),r=await SW.client.from("order_items").select("*").eq("order_id",id);alert(`Order ${o.order_number}\n\n${o.customer_name}\n${o.phone}\n${o.city}\n${o.address}\n\nPayment: ${o.payment_method}\nTotal: ${money(o.total)}\n\n${(r.data||[]).map(i=>i.product_name+" × "+i.quantity).join("\n")}`)}
