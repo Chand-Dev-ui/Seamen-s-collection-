@@ -3,7 +3,29 @@ async function isAdmin(){let {data,error}=await SW.client.rpc("is_admin");return
 async function init(){if(!SW.ready())return login("Add Supabase credentials in assets/config.js first.");let {data}=await SW.client.auth.getSession();if(!data.session)return login();if(!(await isAdmin())){await SW.client.auth.signOut();return login("This account is not an admin account.")}await loadData();render()}
 function login(msg=""){document.getElementById("adminApp").innerHTML=`<div class="admin-login"><div class="login-card"><div class="logo"><span class="logo-mark">S</span><span><b>SEAMEN'S COLLECTION</b><small>ADMIN PANEL</small></span></div><h2>Admin Login</h2>${msg?`<p class="danger">${esc(msg)}</p>`:""}<input id="email" type="email" placeholder="Admin email"><input id="password" type="password" placeholder="Password"><button class="btn dark" onclick="doLogin()">Login</button></div></div>`}
 async function doLogin(){if(loggingIn)return;let email=$("#email").value.trim(),password=$("#password").value;if(!email||!password)return alert("Enter email and password.");loggingIn=true;let {error}=await SW.client.auth.signInWithPassword({email,password});if(error){loggingIn=false;return alert(error.message)}if(!(await isAdmin())){await SW.client.auth.signOut();loggingIn=false;return login("This account is not an admin account.")}await loadData();loggingIn=false;render()}
-async function loadData(){let p=await SW.client.from("products").select("*").order("created_at",{ascending:false});let o=await SW.client.from("orders").select("*").order("created_at",{ascending:false});if(p.error)alert(p.error.message);if(o.error)alert(o.error.message);products=p.data||[];orders=o.data||[]}
+async function loadData(){
+  let p = await SW.client
+    .from("products")
+    .select("*")
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  let o = await SW.client
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (p.error) {
+    alert(p.error.message);
+  }
+
+  if (o.error) {
+    alert(o.error.message);
+  }
+
+  products = p.data || [];
+  orders = o.data || [];
+}
 function render(){document.getElementById("adminApp").innerHTML=`<div class="admin-shell"><aside class="side"><h1>SEAMEN'S</h1><small>COLLECTION · ADMIN</small><nav>${["dashboard","products","orders"].map(x=>`<button class="${tab===x?"active":""}" onclick="go('${x}')">${x[0].toUpperCase()+x.slice(1)}</button>`).join("")}<button onclick="logout()">Logout</button><button onclick="location.href='../'">View Store ↗</button></nav></aside><main class="admin-main">${tab==="dashboard"?dash():tab==="products"?prodPage():orderPage()}</main></div>`}
 function go(x){tab=x;render()}
 function dash(){let total=orders.reduce((a,o)=>a+Number(o.total),0);return`<div class="admin-top"><h2>Dashboard</h2></div><div class="cards"><div class="stat"><div class="muted">Products</div><b>${products.length}</b></div><div class="stat"><div class="muted">Orders</div><b>${orders.length}</b></div><div class="stat"><div class="muted">Sales</div><b>${money(total)}</b></div><div class="stat"><div class="muted">New</div><b>${orders.filter(o=>o.status==="New").length}</b></div></div><div class="panel"><h3>Recent orders</h3>${table(orders.slice(0,8))}</div>`}
