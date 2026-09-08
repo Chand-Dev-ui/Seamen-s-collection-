@@ -7,7 +7,7 @@ async function loadData(){
   let p = await SW.client
     .from("products")
     .select("*")
-    .eq("active", true)
+
     .order("created_at", { ascending: false });
 
   let o = await SW.client
@@ -33,22 +33,6 @@ function table(a){if(!a.length)return"<div class='empty'>No orders yet.</div>";r
 function orderPage(){return`<div class="admin-top"><h2>Orders</h2></div><div class="panel ${orders.length>1?'compact-orders':''}">${table(orders)}</div>`}
 function prodPage(){return`<div class="admin-top"><h2>Products</h2><button class="btn dark" onclick="openProductForm()">+ Add Product</button></div><div class="panel"><table class="admin-table"><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th></th></tr>${products.map(p=>`<tr><td class="mini-thumb">${p.image_url?`<img src="${esc(p.image_url)}">`:"—"}</td><td>${esc(p.name)}</td><td>${p.category}</td><td>${money(p.price)}</td><td>${p.stock}</td><td><button onclick="openProductForm('${p.id}')">Edit</button> <button onclick="del('${p.id}')">Delete</button></td></tr>`).join("")}</table></div><div id="modal"></div>`}
 function openProductForm(id){let p=products.find(x=>x.id===id)||{name:"",category:"Beads",price:0,stock:0,description:"",image_url:"",active:true};document.getElementById("modal").innerHTML=`<div class="modal open"><div class="modal-box"><button class="close" onclick="$('#modal').innerHTML=''">×</button><h3>${id?"Edit":"Add"} Product</h3><input id="pn" placeholder="Name" value="${esc(p.name)}"><select id="pc">${["Beads","Resin","Crochet"].map(x=>`<option ${x===p.category?"selected":""}>${x}</option>`).join("")}</select><input id="pp" type="number" placeholder="Price" value="${p.price}"><input id="ps" type="number" placeholder="Stock" value="${p.stock}"><textarea id="pd" placeholder="Description">${esc(p.description)}</textarea><label class="upload-label">Product image from gallery<input id="pimg" type="file" accept="image/*"></label>${p.image_url?`<div class="image-preview"><img src="${esc(p.image_url)}"><small>Current image will stay unless a new image is selected.</small></div>`:""}<label><input id="pa" type="checkbox" ${p.active?"checked":""}> Active</label><br><button class="btn dark" onclick="save('${id||""}')">Save</button></div></div>`}
-async function del(id){
-  if(!confirm("Delete this product permanently?")) return;
-
-  let r = await SW.client
-    .from("products")
-    .delete()
-    .eq("id", id);
-
-  if(r.error){
-    alert("Delete failed: " + r.error.message);
-    return;
-  }
-
-  await loadData();
-  render();
-}
 async function del(id){
   if(!confirm("Delete this product?")) return;
 
